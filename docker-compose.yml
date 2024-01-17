@@ -1,0 +1,14 @@
+version: '3.7'
+
+services:  
+  api:
+    image: docker.io/library/store-management-service-api:latest
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:8080"
+    networks:
+      - store-management
+
+networks:
+  store-management:
