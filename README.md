@@ -26,6 +26,8 @@ Before running the service, make sure you have the following dependencies instal
   
    ```
    MONGO_URL=<add your mongo url hosted on cloud>
+   MONGO_DB_NAME=<add name of db in the mongo instance>
+   MONGO_COLLECTION_NAME=<add name of collection in the mongo instance>
    PORT=<add host port>
    ```
 

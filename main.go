@@ -46,7 +46,7 @@ func main() {
 
 	// You can now use the "client" variable to interact with your MongoDB database.
 	// For example, you can access a collection:
-	collection := client.Database("cds").Collection("stores")
+	collection := client.Database(os.Getenv("MONGO_DB_NAME")).Collection(os.Getenv("MONGO_COLLECTION_NAME"))
 
 	// Session store in  NewFilesystemStore
 	store := sessions.NewFilesystemStore("sessions/", []byte("secret-key"))
