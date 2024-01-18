@@ -26,23 +26,23 @@ func SetupRouter(collection *mongo.Collection, store *sessions.FilesystemStore) 
 			stores.POST("/add", func(c *gin.Context) {
 				controllers.AddStore(c, collection, store)
 			})
-			stores.PATCH("/update/:storeUID", func(c *gin.Context) {
+			stores.PATCH("/update/:storeID", func(c *gin.Context) {
 				controllers.UpdateStore(c, collection, store)
 			})
-			stores.DELETE("/remove", func(c *gin.Context) {
+			stores.DELETE("/remove/:storeID", func(c *gin.Context) {
 				controllers.RemoveStore(c, collection, store)
 			})
 		}
 
 		items := v1.Group("/item")
 		{
-			items.POST("/add/:storeUID", func(c *gin.Context) {
+			items.POST("/add/:storeID", func(c *gin.Context) {
 				controllers.AddItem(c, collection, store)
 			})
-			items.PATCH("/update/:itemID", func(c *gin.Context) {
+			items.PATCH("/update/:storeID/:itemID", func(c *gin.Context) {
 				controllers.UpdateItem(c, collection, store)
 			})
-			items.DELETE("/remove/:itemID", func(c *gin.Context) {
+			items.DELETE("/remove/:storeID/:itemID", func(c *gin.Context) {
 				controllers.RemoveItem(c, collection, store)
 			})
 		}

@@ -15,7 +15,6 @@ type Store struct {
 
 type Item struct {
 	ItemID      primitive.ObjectID `bson:"_id,omitempty"`
-	StoreID     primitive.ObjectID `bson:"store_id" json:"store_id"`
 	Name        string             `bson:"name" json:"name"`
 	Description string             `bson:"description" json:"description"`
 	Available   bool               `bson:"available" json:"available"`

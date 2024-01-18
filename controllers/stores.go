@@ -47,7 +47,11 @@ func AddStore(c *gin.Context, collection *mongo.Collection, storeSession *sessio
 }
 
 func UpdateStore(c *gin.Context, collection *mongo.Collection, storeSession *sessions.FilesystemStore) {
-	storeUID := c.Param("storeUID")
+	storeID, err := primitive.ObjectIDFromHex(c.Param("storeID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid store ID format"})
+		return
+	}
 
 	var updateData struct {
 		Name        string `json:"name"`
@@ -73,7 +77,7 @@ func UpdateStore(c *gin.Context, collection *mongo.Collection, storeSession *ses
 	}
 
 	filter := bson.D{
-		{Key: "_id", Value: storeUID},
+		{Key: "_id", Value: storeID},
 		{Key: "merchant_id", Value: merchantID},
 	}
 
@@ -92,14 +96,18 @@ func UpdateStore(c *gin.Context, collection *mongo.Collection, storeSession *ses
 }
 
 func RemoveStore(c *gin.Context, collection *mongo.Collection, storeSession *sessions.FilesystemStore) {
-	storeUID := c.Param("storeUID")
+	storeID, err := primitive.ObjectIDFromHex(c.Param("storeID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid store ID format"})
+		return
+	}
 
 	// Get merchantID from the session
 	session, _ := storeSession.Get(c.Request, "session-name")
 	merchantID, _ := session.Values["user_id"].(uint)
 
 	filter := bson.D{
-		{Key: "_id", Value: storeUID},
+		{Key: "_id", Value: storeID},
 		{Key: "merchant_id", Value: merchantID},
 	}
 

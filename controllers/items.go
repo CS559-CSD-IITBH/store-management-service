@@ -13,7 +13,11 @@ import (
 )
 
 func AddItem(c *gin.Context, collection *mongo.Collection, storeSession *sessions.FilesystemStore) {
-	storeUID := c.Param("storeUID")
+	storeID, err := primitive.ObjectIDFromHex(c.Param("storeID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid store ID format"})
+		return
+	}
 
 	var itemData struct {
 		Name        string  `json:"name" binding:"required"`
@@ -27,21 +31,24 @@ func AddItem(c *gin.Context, collection *mongo.Collection, storeSession *session
 		return
 	}
 
-	storeID, err := primitive.ObjectIDFromHex(storeUID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid store ID"})
-		return
-	}
-
 	itemModel := models.Item{
-		StoreID:     storeID,
+		ItemID:      primitive.NewObjectID(),
 		Name:        itemData.Name,
 		Description: itemData.Description,
 		Available:   itemData.Available,
 		Price:       itemData.Price,
 	}
 
-	_, err = collection.InsertOne(context.TODO(), itemModel)
+	// Update the store's Items field by appending the new item
+	update := bson.M{
+		"$push": bson.M{"items": itemModel},
+	}
+
+	_, err = collection.UpdateOne(
+		context.TODO(),
+		bson.M{"_id": storeID},
+		update,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -51,20 +58,15 @@ func AddItem(c *gin.Context, collection *mongo.Collection, storeSession *session
 }
 
 func UpdateItem(c *gin.Context, collection *mongo.Collection, storeSession *sessions.FilesystemStore) {
-	storeUID := c.Param("storeUID")
-	itemID := c.Param("itemID")
-
-	// Fetch store information
-	var store models.Store
-	storeID, err := primitive.ObjectIDFromHex(storeUID)
+	storeID, err := primitive.ObjectIDFromHex(c.Param("storeID"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid store ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid store ID format"})
 		return
 	}
 
-	filter := bson.D{{Key: "_id", Value: storeID}}
-	if err := collection.FindOne(context.TODO(), filter).Decode(&store); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "store not found"})
+	itemID, err := primitive.ObjectIDFromHex(c.Param("itemID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID format"})
 		return
 	}
 
@@ -80,27 +82,36 @@ func UpdateItem(c *gin.Context, collection *mongo.Collection, storeSession *sess
 		return
 	}
 
-	// Construct update query
+	// Construct update query using bson.D
 	update := bson.D{}
 	if updateData.Name != "" {
-		update = append(update, bson.E{Key: "name", Value: updateData.Name})
+		update = append(update, bson.E{Key: "items.$.name", Value: updateData.Name})
 	}
 	if updateData.Description != "" {
-		update = append(update, bson.E{Key: "description", Value: updateData.Description})
+		update = append(update, bson.E{Key: "items.$.description", Value: updateData.Description})
 	}
-	update = append(update, bson.E{Key: "available", Value: updateData.Available})
-	update = append(update, bson.E{Key: "price", Value: updateData.Price})
+	if updateData.Available != false { // Only update if available is provided
+		update = append(update, bson.E{Key: "items.$.available", Value: updateData.Available})
+	}
+	if updateData.Price != 0 { // Only update if price is provided
+		update = append(update, bson.E{Key: "items.$.price", Value: updateData.Price})
+	}
 
-	// Add store ID to the filter
-	filter = bson.D{{Key: "store_id", Value: storeID}, {Key: "_id", Value: itemID}}
+	// Construct filter with store ID and item ID
+	filter := bson.D{{Key: "_id", Value: storeID}, {Key: "items._id", Value: itemID}}
 
-	result, err := collection.UpdateOne(context.TODO(), filter, bson.D{{Key: "$set", Value: update}})
+	// Use "$set" to update fields
+	updateResult, err := collection.UpdateOne(
+		context.TODO(),
+		filter,
+		bson.D{{Key: "$set", Value: update}},
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if result.ModifiedCount == 0 {
+	if updateResult.ModifiedCount == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item not found or unauthorized"})
 		return
 	}
@@ -109,31 +120,37 @@ func UpdateItem(c *gin.Context, collection *mongo.Collection, storeSession *sess
 }
 
 func RemoveItem(c *gin.Context, collection *mongo.Collection, storeSession *sessions.FilesystemStore) {
-	storeUID := c.Param("storeUID")
-	itemID := c.Param("itemID")
-
-	// Fetch store information
-	var store models.Store
-	storeID, err := primitive.ObjectIDFromHex(storeUID)
+	storeID, err := primitive.ObjectIDFromHex(c.Param("storeID"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid store ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid store ID format"})
+		return
+	}
+	itemID, err := primitive.ObjectIDFromHex(c.Param("itemID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID format"})
 		return
 	}
 
+	// Fetch store information
+	var store models.Store
 	filter := bson.D{{Key: "_id", Value: storeID}}
 	if err := collection.FindOne(context.TODO(), filter).Decode(&store); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "store not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Store not found"})
 		return
 	}
 
 	// Delete item
-	result, err := collection.DeleteOne(context.TODO(), bson.D{{Key: "_id", Value: itemID}, {Key: "store_id", Value: storeID}})
+	result, err := collection.UpdateOne(
+		context.TODO(),
+		bson.D{{Key: "_id", Value: storeID}},
+		bson.D{{Key: "$pull", Value: bson.D{{Key: "items", Value: bson.D{{Key: "_id", Value: itemID}}}}}},
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if result.DeletedCount == 0 {
+	if result.ModifiedCount == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item not found or unauthorized"})
 		return
 	}
