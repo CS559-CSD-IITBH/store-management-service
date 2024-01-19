@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/CS559-CSD-IITBH/store-management-service/models"
@@ -123,4 +124,35 @@ func RemoveStore(c *gin.Context, collection *mongo.Collection, storeSession *ses
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Store removed successfully"})
+}
+
+func ViewStore(c *gin.Context, collection *mongo.Collection, storeSession *sessions.FilesystemStore) {
+	storeID, err := primitive.ObjectIDFromHex(c.Param("storeID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid store ID format"})
+		return
+	}
+
+	// Get merchantID from the session
+	session, _ := storeSession.Get(c.Request, "session-name")
+	merchantID, _ := session.Values["user_id"].(uint)
+
+	filter := bson.D{
+		{Key: "_id", Value: storeID},
+		{Key: "merchant_id", Value: merchantID},
+	}
+
+	var storeModel models.Store
+	err = collection.FindOne(context.TODO(), filter).Decode(&storeModel)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Store not found or unauthorized"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// You can now use the 'storeInfo' variable to send the relevant information in the response
+	c.JSON(http.StatusOK, gin.H{"status": "success", "store": storeModel})
 }

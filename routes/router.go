@@ -32,6 +32,9 @@ func SetupRouter(collection *mongo.Collection, store *sessions.FilesystemStore) 
 			stores.DELETE("/remove/:storeID", func(c *gin.Context) {
 				controllers.RemoveStore(c, collection, store)
 			})
+			stores.GET("/view/:storeID", func(c *gin.Context) {
+				controllers.ViewStore(c, collection, store)
+			})
 		}
 
 		items := v1.Group("/item")
