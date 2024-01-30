@@ -29,6 +29,8 @@ Before running the service, make sure you have the following dependencies instal
    MONGO_DB_NAME=<add name of db in the mongo instance>
    MONGO_COLLECTION_NAME=<add name of collection in the mongo instance>
    PORT=<add host port>
+   SESSION_KEY=<private encryption key for sessions>
+   FRONTEND_URL=<url of frontend service / reverse proxy>
    ```
 
 4. Build the docker image for the **api-service**. Run the following command in the root directory.

@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -42,23 +42,22 @@ func main() {
 		log.Fatal("Internal server error: Unable to talk to Mongo")
 	}
 
-	fmt.Println("Connected to MongoDB!")
+	log.Println("Connected to Mongo!")
 
 	// You can now use the "client" variable to interact with your MongoDB database.
 	// For example, you can access a collection:
 	collection := client.Database(os.Getenv("MONGO_DB_NAME")).Collection(os.Getenv("MONGO_COLLECTION_NAME"))
 
-	// Session store in  NewFilesystemStore
-	store := sessions.NewFilesystemStore("sessions/", []byte("secret-key"))
+	// Session store
+	store := sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
 	// Set max age for cookie
 	store.Options = &sessions.Options{
+		Path:     "/api/v1",
 		MaxAge:   86400 * 7,
-		HttpOnly: true,
-	}
-
-	if err != nil {
-		log.Fatalln("Internal server error: Unable to connect to the DB")
+		HttpOnly: false,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	}
 
 	r := routes.SetupRouter(collection, store)

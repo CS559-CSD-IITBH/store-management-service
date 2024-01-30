@@ -6,7 +6,7 @@ import (
 
 type Store struct {
 	StoreID     primitive.ObjectID `bson:"_id,omitempty"`
-	MerchantID  uint               `bson:"merchant_id" json:"merchant_id"`
+	MerchantID  primitive.ObjectID `bson:"merchant_id" json:"merchant_id"`
 	Name        string             `bson:"name" json:"name"`
 	Description string             `bson:"description" json:"description"`
 	Available   bool               `bson:"available" json:"available"`
